@@ -1,9 +1,12 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from paddleocr import PaddleOCR
 from PIL import Image
 import io
 
 app = Flask(__name__)
+CORS(app, origins=["[https://auduj.github.io](https://auduj.github.io)"])
+
 ocr = PaddleOCR(
     use_angle_cls=False,
     det_limit_side_len=512,  # ou même 320 si possible

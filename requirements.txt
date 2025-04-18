@@ -2,3 +2,4 @@ flask
 paddleocr
 pillow
 gunicorn
+paddlepaddle

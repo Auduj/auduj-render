@@ -1,6 +1,0 @@
-flask
-flask-cors
-paddleocr
-pillow
-gunicorn
-paddlepaddle

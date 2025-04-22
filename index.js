@@ -7,40 +7,53 @@ app.use(cors({
     origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
-  }));
+}));
 app.use(express.json());
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY // Mets la clé secrète côté backend uniquement !
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY // Mets la clé secrète côté backend uniquement !
 );
 
 app.post('/api/save-stats', async (req, res) => {
     const { matches } = req.body;
     if (!Array.isArray(matches) || matches.length === 0) {
-      return res.status(400).json({ error: 'Bad data' });
+        return res.status(400).json({ error: 'Bad data' });
     }
+
+    // Pour debug : log les champs reçus
+    console.log("Matches reçus :", matches);
 
     const pseudo = matches[0].pseudo;
 
     // Vérif profil (insensible à la casse)
     const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id')
-      .ilike('username', pseudo) // <-- ici
-      .single();
+        .from('profiles')
+        .select('id')
+        .ilike('username', pseudo)
+        .single();
 
     if (profileError || !profile) {
-      return res.status(403).json({ error: "Pseudo non autorisé." });
+        return res.status(403).json({ error: "Pseudo non autorisé." });
     }
 
-    // Insertion sans doublon
-    const { error } = await supabase
-      .from('games')
-      .insert(matches, { upsert: false })
-      .onConflict('match_id,pseudo');
+    // Nettoyage (optionnel) : supprime les champs inutiles ou ajoute un champ timestamp
+    const matchesToInsert = matches.map(m => ({
+        ...m,
+        pseudo: m.pseudo.trim(),
+        inserted_at: new Date().toISOString() // Pour le suivi
+    }));
 
-    if (error) return res.status(500).json({ error: error.message });
+    // Insertion sans doublon (assure-toi que match_id est bien envoyé côté extension !)
+    const { error } = await supabase
+        .from('games')
+        .insert(matchesToInsert, { upsert: false })
+        .onConflict('match_id,pseudo'); // match_id doit être unique par pseudo
+
+    if (error) {
+        console.error("Erreur insertion games :", error);
+        return res.status(500).json({ error: error.message });
+    }
 
     res.json({ success: true });
 });

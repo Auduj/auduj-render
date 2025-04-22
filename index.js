@@ -47,9 +47,8 @@ app.post('/api/save-stats', async (req, res) => {
 
     // Insertion sans doublon
     const { error } = await supabase
-        .from('games')
-        .insert(matchesToInsert, { upsert: false })
-        .onConflict('match_id,pseudo'); // match_id doit être unique par pseudo
+    .from('games')
+    .upsert(matchesToInsert, { onConflict: ['match_id', 'pseudo'] });
 
     if (error) {
         console.error("Erreur insertion games :", error);

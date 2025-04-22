@@ -24,28 +24,23 @@ app.post('/api/save-stats', async (req, res) => {
     // Pour debug : log les champs reçus
     console.log("Matches reçus :", matches);
 
-    // On force pseudo = player pour chaque ligne
-    const matchesWithPseudo = matches.map(m => ({
-        ...m,
-        pseudo: (m.player || '').trim()
-    }));
+    // On suppose que le front n'envoie QUE les stats du joueur connecté
+    // On prend le pseudo du premier objet
+    const pseudo = (matches[0].pseudo || '').trim();
 
-    // Vérifie que chaque pseudo existe dans la table profiles
-    const pseudos = [...new Set(matchesWithPseudo.map(m => m.pseudo))];
-    for (const pseudo of pseudos) {
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('id')
-            .ilike('username', pseudo)
-            .single();
+    // Vérifie que ce pseudo existe dans la table profiles
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('username', pseudo)
+        .single();
 
-        if (profileError || !profile) {
-            return res.status(403).json({ error: `Pseudo non autorisé: ${pseudo}` });
-        }
+    if (profileError || !profile) {
+        return res.status(403).json({ error: `Pseudo non autorisé: ${pseudo}` });
     }
 
     // Ajoute le timestamp d'insertion
-    const matchesToInsert = matchesWithPseudo.map(m => ({
+    const matchesToInsert = matches.map(m => ({
         ...m,
         inserted_at: new Date().toISOString()
     }));

@@ -24,6 +24,12 @@ app.post('/api/save-stats', async (req, res) => {
     const pseudo = matches[0].pseudo;
     console.log('Pseudo reçu pour vérif profil :', `"${pseudo}"`);
 
+// DEBUG : Affiche tous les usernames vus par le backend
+const { data: allProfiles, error: allProfilesError } = await supabase
+  .from('profiles')
+  .select('username');
+console.log('Tous les usernames vus par le backend:', allProfiles, allProfilesError);
+
     const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('id')

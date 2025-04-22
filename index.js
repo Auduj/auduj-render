@@ -21,27 +21,28 @@ app.post('/api/save-stats', async (req, res) => {
         return res.status(400).json({ error: 'Bad data' });
     }
 
-    const pseudo = matches[0].pseudo;
-    console.log('Pseudo reçu pour vérif profil :', `"${pseudo}"`);
+    // Pour debug : log les champs reçus
+    console.log("Matches reçus :", matches);
 
-// DEBUG : Affiche tous les usernames vus par le backend
-const { data: allProfiles, error: allProfilesError } = await supabase
-  .from('profiles')
-  .select('username');
-console.log('Tous les usernames vus par le backend:', allProfiles, allProfilesError);
+    // On force pseudo = player pour chaque ligne
+    const matchesWithPseudo = matches.map(m => ({
+        ...m,
+        pseudo: (m.player || '').trim()
+    }));
 
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .ilike('username', pseudo)
-        .single();
+    // Vérifie que chaque pseudo existe dans la table profiles
+    const pseudos = [...new Set(matchesWithPseudo.map(m => m.pseudo))];
+    for (const pseudo of pseudos) {
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('id')
+            .ilike('username', pseudo)
+            .single();
 
-    console.log('Résultat requête profil :', profile, profileError);
-
-    if (profileError || !profile) {
-        return res.status(403).json({ error: "Pseudo non autorisé: " + pseudo });
+        if (profileError || !profile) {
+            return res.status(403).json({ error: `Pseudo non autorisé: ${pseudo}` });
+        }
     }
-
 
     // Ajoute le timestamp d'insertion
     const matchesToInsert = matchesWithPseudo.map(m => ({

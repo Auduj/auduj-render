@@ -24,27 +24,35 @@ app.post('/api/save-stats', async (req, res) => {
     // Pour debug : log les champs reçus
     console.log("Matches reçus :", matches);
 
-    const pseudo = matches[0].pseudo;
-
-    // Vérif profil (insensible à la casse)
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .ilike('username', pseudo)
-        .single();
-
-    if (profileError || !profile) {
-        return res.status(403).json({ error: "Pseudo non autorisé." });
-    }
-
-    // Nettoyage (optionnel) : supprime les champs inutiles ou ajoute un champ timestamp
-    const matchesToInsert = matches.map(m => ({
+    // On force pseudo = player pour chaque ligne
+    const matchesWithPseudo = matches.map(m => ({
         ...m,
-        pseudo: m.pseudo.trim(),
-        inserted_at: new Date().toISOString() // Pour le suivi
+        pseudo: (m.player || '').trim()
     }));
 
-    // Insertion sans doublon (assure-toi que match_id est bien envoyé côté extension !)
+    // On récupère la liste des pseudos uniques à insérer
+    const pseudos = [...new Set(matchesWithPseudo.map(m => m.pseudo))];
+
+    // Vérifie que chaque pseudo existe dans la table profiles
+    for (const pseudo of pseudos) {
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('id')
+            .ilike('username', pseudo)
+            .single();
+
+        if (profileError || !profile) {
+            return res.status(403).json({ error: `Pseudo non autorisé: ${pseudo}` });
+        }
+    }
+
+    // Ajoute le timestamp d'insertion
+    const matchesToInsert = matchesWithPseudo.map(m => ({
+        ...m,
+        inserted_at: new Date().toISOString()
+    }));
+
+    // Insertion sans doublon
     const { error } = await supabase
         .from('games')
         .insert(matchesToInsert, { upsert: false })
